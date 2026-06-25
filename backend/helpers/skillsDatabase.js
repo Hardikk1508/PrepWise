@@ -1,0 +1,31 @@
+const TECH_SKILLS = [
+  "javascript",
+  "react",
+  "node.js",
+  "nodejs",
+  "express",
+  "mongodb",
+  "mysql",
+  "sql",
+  "html",
+  "css",
+  "tailwind",
+  "bootstrap",
+  "python",
+  "java",
+  "c++",
+  "c",
+  "typescript",
+  "redux",
+  "docker",
+  "aws",
+  "graphql",
+  "git",
+  "github",
+  "rest api",
+  "next.js",
+];
+
+module.exports = {
+  TECH_SKILLS,
+};
