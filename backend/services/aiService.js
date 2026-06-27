@@ -37,32 +37,34 @@ const MODELS = [
 async function generateWithFallback(prompt) {
   let lastError;
 
-for (const modelName of MODELS) {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      console.log(`Trying ${modelName} Attempt ${attempt}`);
+  for (const modelName of MODELS) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`Trying ${modelName} Attempt ${attempt}`);
 
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-      });
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+        });
 
-      const result = await model.generateContent(prompt);
+        const result = await model.generateContent(prompt);
 
-      return result.response.text();
+        return result.response.text();
+      } catch (err) {
+        console.error(
+          `${modelName} attempt ${attempt} failed:`,
+          err.message
+        );
 
-    } catch (err) {
-      console.error(
-        `${modelName} attempt ${attempt} failed:`,
-        err.message
-      );
+        if (attempt < 3) {
+          await sleep(2000 * attempt);
+        }
 
-      if (attempt < 3) {
-        await sleep(2000 * attempt);
+        lastError = err;
       }
-
-      lastError = err;
     }
   }
+
+  throw lastError || new Error("All Gemini models failed");
 }
 
 /**
@@ -104,6 +106,8 @@ function safeParseJSON(text, context) {
 throw new Error(
   `Failed to parse Gemini response (${context}): ${err.message}`
 );
+}
+}
 
 // ── Generate interview questions ──
 // NOTE ON RETURN SHAPE CHANGE:
@@ -452,6 +456,3 @@ module.exports = {
   generateSessionSummary,
   generateDashboardSuggestions,
 };
-}
-}
-}
