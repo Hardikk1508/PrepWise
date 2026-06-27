@@ -1,10 +1,8 @@
-const { OpenAI } = require("openai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const client = new OpenAI({
-  apiKey: process.env.GROK_API_KEY,
-  baseURL: "https://api.x.ai/v1",
-  timeout: 60_000, // 60 second timeout for all requests
-});
+const genAI = new GoogleGenerativeAI(
+  process.env.GEMINI_API_KEY
+);
 
 // ── Config for retry strategy ──
 const MAX_RETRIES = 3;
@@ -24,61 +22,47 @@ function isRetryableError(err) {
   return false;
 }
 
-/**
- * Core call to Grok with retry + exponential backoff.
- * Validates the response shape before returning, so callers never have to
- * defensively check response.choices[0] themselves.
- */
+/****************************************************
+ * Core call to Gemini with model fallback.
+ * Tries multiple Gemini models and returns the first
+ * successful response.
+ ****************************************************/
+const MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite"
+];
+
 async function generateWithFallback(prompt) {
   let lastError;
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+for (const modelName of MODELS) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const response = await client.chat.completions.create({
-        model: "grok-3-mini",
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 1000,
+      console.log(`Trying ${modelName} Attempt ${attempt}`);
+
+      const model = genAI.getGenerativeModel({
+        model: modelName,
       });
 
-      // ── Validate response shape before touching choices[0] ──
-      const choice = response?.choices?.[0];
-      const content = choice?.message?.content;
+      const result = await model.generateContent(prompt);
 
-      if (!content || typeof content !== "string" || content.trim().length === 0) {
-        throw new Error("Grok returned an empty or invalid response body");
-      }
+      return result.response.text();
 
-      return content;
     } catch (err) {
-      lastError = err;
-      const status = err?.status || err?.response?.status;
       console.error(
-        `Grok API Error (attempt ${attempt + 1}/${MAX_RETRIES + 1}):`,
-        err.response?.data || err.message || err
+        `${modelName} attempt ${attempt} failed:`,
+        err.message
       );
 
-      const isLastAttempt = attempt === MAX_RETRIES;
-      if (isLastAttempt || !isRetryableError(err)) {
-        break;
+      if (attempt < 3) {
+        await sleep(2000 * attempt);
       }
 
-      // Exponential backoff: 1s, 2s, 4s
-      const backoff = BASE_BACKOFF_MS * Math.pow(2, attempt);
-      console.warn(`Retrying Grok request in ${backoff}ms (status: ${status || "n/a"})...`);
-      await sleep(backoff);
+      lastError = err;
     }
   }
-
-  // All retries exhausted — surface a clear, actionable error to the caller
-  throw new Error(
-    `Grok API request failed after ${MAX_RETRIES + 1} attempts: ${lastError?.message || "Unknown error"}`
-  );
 }
 
 /**
@@ -115,10 +99,11 @@ function safeParseJSON(text, context) {
     return JSON.parse(cleaned);
   } catch (err) {
     const preview = cleaned.length > 500 ? `${cleaned.slice(0, 500)}...[truncated]` : cleaned;
-    console.error(`Invalid JSON from Grok (${context}):`, preview);
-    throw new Error(`Failed to parse Grok response (${context}): ${err.message}`);
-  }
-}
+    console.error(`Invalid JSON from Gemini (${context}):`, preview);
+
+throw new Error(
+  `Failed to parse Gemini response (${context}): ${err.message}`
+);
 
 // ── Generate interview questions ──
 // NOTE ON RETURN SHAPE CHANGE:
@@ -467,3 +452,6 @@ module.exports = {
   generateSessionSummary,
   generateDashboardSuggestions,
 };
+}
+}
+}
