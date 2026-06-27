@@ -1,4 +1,4 @@
-const OpenAI = require("openai");
+const { OpenAI } = require("openai");
 
 const client = new OpenAI({
   apiKey: process.env.GROK_API_KEY,
