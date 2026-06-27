@@ -1,82 +1,123 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const OpenAI = require("openai");
 
+const client = new OpenAI({
+  apiKey: process.env.GROK_API_KEY,
+  baseURL: "https://api.x.ai/v1",
+  timeout: 60_000, // 60 second timeout for all requests
+});
 
+// ── Config for retry strategy ──
+const MAX_RETRIES = 3;
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+const BASE_BACKOFF_MS = 1000; // 1s, then 2s, then 4s
 
-async function retryGemini(fn, retries = 3) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      const msg = err.message || "";
-
-      // Retry only for rate limit / temporary server errors
-      if (
-        (msg.includes("429") || msg.includes("503")) &&
-        i < retries - 1
-      ) {
-        console.log(`Retrying Gemini... Attempt ${i + 1}`);
-
-        await new Promise((resolve) =>
-          setTimeout(resolve, (i + 1) * 3000)
-        );
-
-        continue;
-      }
-
-      throw err;
-    }
-  }
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Decides whether an error is worth retrying (rate limits, transient server errors)
+function isRetryableError(err) {
+  const status = err?.status || err?.response?.status;
+  if (status && RETRYABLE_STATUS_CODES.has(status)) return true;
+  // Network-level issues (timeouts, connection resets) are also safe to retry
+  if (err?.code === "ECONNRESET" || err?.code === "ETIMEDOUT" || err?.type === "system") return true;
+  return false;
+}
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-const MODELS = [
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-3.5-flash",
-  "gemini-3-flash"
-];
-
+/**
+ * Core call to Grok with retry + exponential backoff.
+ * Validates the response shape before returning, so callers never have to
+ * defensively check response.choices[0] themselves.
+ */
 async function generateWithFallback(prompt) {
   let lastError;
 
-  for (const modelName of MODELS) {
-    for (let i = 0; i < 3; i++) {
-      try {
-        console.log(`Trying ${modelName} Attempt ${i + 1}`);
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await client.chat.completions.create({
+        model: "grok-3-mini",
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
 
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-        });
+      // ── Validate response shape before touching choices[0] ──
+      const choice = response?.choices?.[0];
+      const content = choice?.message?.content;
 
-        const result = await model.generateContent(prompt);
+      if (!content || typeof content !== "string" || content.trim().length === 0) {
+        throw new Error("Grok returned an empty or invalid response body");
+      }
 
-        return result;
-      } catch (err) {
-        lastError = err;
-        console.log("FULL GEMINI ERROR");
-        console.log(err);
-        const msg = err.message || "";
+      return content;
+    } catch (err) {
+      lastError = err;
+      const status = err?.status || err?.response?.status;
+      console.error(
+        `Grok API Error (attempt ${attempt + 1}/${MAX_RETRIES + 1}):`,
+        err.response?.data || err.message || err
+      );
 
-        if (
-          msg.includes("429") ||
-          msg.includes("503") ||
-          msg.includes("overloaded")
-        ) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, (i + 1) * 3000)
-          );
-
-          continue;
-        }
-
+      const isLastAttempt = attempt === MAX_RETRIES;
+      if (isLastAttempt || !isRetryableError(err)) {
         break;
       }
+
+      // Exponential backoff: 1s, 2s, 4s
+      const backoff = BASE_BACKOFF_MS * Math.pow(2, attempt);
+      console.warn(`Retrying Grok request in ${backoff}ms (status: ${status || "n/a"})...`);
+      await sleep(backoff);
     }
   }
 
-  throw new Error("AI service is temporarily unavailable. Please try again in a few minutes."); 
+  // All retries exhausted — surface a clear, actionable error to the caller
+  throw new Error(
+    `Grok API request failed after ${MAX_RETRIES + 1} attempts: ${lastError?.message || "Unknown error"}`
+  );
+}
+
+/**
+ * Strips markdown code fences and trims stray text around JSON output.
+ * Models sometimes wrap JSON in ```json ... ``` or add leading/trailing
+ * commentary — this normalizes that before parsing.
+ */
+function cleanJsonResponse(text) {
+  let cleaned = text.trim();
+  cleaned = cleaned.replace(/```json|```/g, "").trim();
+
+  // Fallback: if there's still leading/trailing junk, try to isolate the
+  // first valid-looking JSON array or object in the string.
+  const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+  const objectMatch = cleaned.match(/\{[\s\S]*\}/);
+
+  if (cleaned.startsWith("[") || cleaned.startsWith("{")) {
+    return cleaned;
+  }
+  if (arrayMatch) return arrayMatch[0];
+  if (objectMatch) return objectMatch[0];
+
+  return cleaned;
+}
+
+/**
+ * Safe JSON.parse wrapper. Logs the raw offending text (truncated) and
+ * throws a descriptive error tagged with the calling context so failures
+ * are traceable without crashing the process.
+ */
+function safeParseJSON(text, context) {
+  const cleaned = cleanJsonResponse(text);
+  try {
+    return JSON.parse(cleaned);
+  } catch (err) {
+    const preview = cleaned.length > 500 ? `${cleaned.slice(0, 500)}...[truncated]` : cleaned;
+    console.error(`Invalid JSON from Grok (${context}):`, preview);
+    throw new Error(`Failed to parse Grok response (${context}): ${err.message}`);
+  }
 }
 
 // ── Generate interview questions ──
@@ -91,15 +132,11 @@ async function generateWithFallback(prompt) {
 // This keeps a single consistent shape so the controller and frontend
 // don't need to special-case based on presence/absence of fields.
 async function generateQuestions(role, level, type, duration) {
-//   const model = genAI.getGenerativeModel({
-//   model: "gemini-2.5-flash",
-// });
+  let questionCount = 5;
 
-let questionCount = 5;
-
-if (parseInt(duration) === 10) questionCount = 10;
-else if (parseInt(duration) === 15) questionCount = 15;
-else if (parseInt(duration) === 20) questionCount = 20;
+  if (parseInt(duration) === 10) questionCount = 10;
+  else if (parseInt(duration) === 15) questionCount = 15;
+  else if (parseInt(duration) === 20) questionCount = 20;
 
   const durationMins = parseInt(duration);
 
@@ -108,8 +145,8 @@ else if (parseInt(duration) === 20) questionCount = 20;
   const useMcqFlow = isTechnical && !Number.isNaN(durationMins);
 
   if (useMcqFlow) {
-  return generateTechnicalQuestions(role, level, durationMins, questionCount);
-}
+    return generateTechnicalQuestions(role, level, durationMins, questionCount);
+  }
 
   // ── Existing Behavioral / HR / non-technical flow (unchanged) ──
   let extraRules = "";
@@ -182,11 +219,9 @@ Example:
  "Question 2"
 ]
 `;
-const result = await generateWithFallback(prompt);
 
-  const text = result.response.text().trim();
-  const clean = text.replace(/```json|```/g, "").trim();
-  const rawQuestions = JSON.parse(clean);
+  const text = await generateWithFallback(prompt);
+  const rawQuestions = safeParseJSON(text, "generateQuestions");
 
   // Normalize plain strings into the consistent { question, type, options, correctAnswer } shape
   return rawQuestions.map((q) => ({
@@ -244,10 +279,8 @@ Return ONLY a JSON array in this exact shape, no markdown, no extra text:
 ]
 `;
 
-  const mcqResult = await generateWithFallback(mcqPrompt);
-  const mcqText = mcqResult.response.text().trim();
-  const mcqClean = mcqText.replace(/```json|```/g, "").trim();
-  const mcqRaw = JSON.parse(mcqClean);
+  const mcqText = await generateWithFallback(mcqPrompt);
+  const mcqRaw = safeParseJSON(mcqText, "generateTechnicalQuestions:mcq");
 
   const mcqQuestions = mcqRaw.map((q) => ({
     question: q.question,
@@ -283,10 +316,8 @@ Return ONLY a JSON array of question strings, no markdown:
 ["Question 1", "Question 2"]
 `;
 
-  const subjResult = await generateWithFallback(subjectivePrompt);
-  const subjText = subjResult.response.text().trim();
-  const subjClean = subjText.replace(/```json|```/g, "").trim();
-  const subjRaw = JSON.parse(subjClean);
+  const subjText = await generateWithFallback(subjectivePrompt);
+  const subjRaw = safeParseJSON(subjText, "generateTechnicalQuestions:subjective");
 
   const subjectiveQuestions = subjRaw.map((q) => ({
     question: q,
@@ -316,10 +347,6 @@ async function evaluateAnswer(question, answer, role, type) {
     };
   }
 
-//   const model = genAI.getGenerativeModel({
-//   model: "gemini-2.5-flash"
-// });
-
   const prompt = `You are an expert interviewer evaluating a candidate's response.
 
 Role: ${role}
@@ -348,10 +375,8 @@ Return ONLY valid JSON, no markdown, no extra text:
   "feedback": "Your explanation was clear but you missed..."
 }`;
 
-  const result = await generateWithFallback(prompt);
-  const text = result.response.text().trim();
-  const clean = text.replace(/```json|```/g, "").trim();
-  const parsed = JSON.parse(clean);
+  const text = await generateWithFallback(prompt);
+  const parsed = safeParseJSON(text, "evaluateAnswer");
   return { ...parsed, isEmpty: false };
 }
 
@@ -387,10 +412,6 @@ function evaluateMcqAnswer(selectedOption, correctAnswer) {
 
 // ── Generate overall session summary ──
 async function generateSessionSummary(role, type, level, questionsWithAnswers, scores) {
-//   const model = genAI.getGenerativeModel({
-//   model: "gemini-2.5-flash"
-// });
-
   const qa = questionsWithAnswers.map((q, i) =>
     `Q${i + 1}: ${q.question}\nAnswer: ${q.answer || "No answer"}\nScore: ${q.score}/10`
   ).join("\n\n");
@@ -417,10 +438,8 @@ Return ONLY valid JSON, no markdown:
   "nextSteps": ["...", "..."]
 }`;
 
- const result = await generateWithFallback(prompt);
-  const text = result.response.text().trim();
-  const clean = text.replace(/```json|```/g, "").trim();
-  return JSON.parse(clean);
+  const text = await generateWithFallback(prompt);
+  return safeParseJSON(text, "generateSessionSummary");
 }
 
 // ── Generate dynamic dashboard suggestions ──
