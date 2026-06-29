@@ -815,11 +815,11 @@ MIT License — feel free to use, modify, and distribute with attribution.
 
 <img src="https://github.com/yourusername.png" width="120px" style="border-radius:50%;"/>
 
-### Your Name
+### Hardik Bhardwaj
 
 *Full-Stack Developer | AI Enthusiast | Open Source Contributor*
 
-📍 India &nbsp;|&nbsp; 💼 Open to opportunities &nbsp;|&nbsp; 📧 youremail@gmail.com
+📍 India &nbsp;|&nbsp; 💼 Open to opportunities &nbsp;|&nbsp; 📧 hardik.bhardwaj500@gmail.com
 
 </div>
 
@@ -829,7 +829,7 @@ MIT License — feel free to use, modify, and distribute with attribution.
 
 <div align="center">
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/yourusername)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](www.linkedin.com/in/hardik-bhardwaj1508)
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/yourusername)
 [![Portfolio](https://img.shields.io/badge/Portfolio-FF5722?style=for-the-badge&logo=google-chrome&logoColor=white)](https://yourportfolio.dev)
 [![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/yourusername)
@@ -846,7 +846,7 @@ MIT License — feel free to use, modify, and distribute with attribution.
 
 **⭐ Star this repository if you found it helpful!**
 
-Made with ❤️ and ☕ by [Hardik Bhardwaj](https://github.com/yourusername)
+Made with ❤️ and ☕ by [Hardik Bhardwaj](https://github.com/Hardikk1508)
 
 *PrepWise — Because every interview deserves your best.*
 
