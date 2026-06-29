@@ -846,7 +846,7 @@ MIT License — feel free to use, modify, and distribute with attribution.
 
 **⭐ Star this repository if you found it helpful!**
 
-Made with ❤️ and ☕ by [Your Name](https://github.com/yourusername)
+Made with ❤️ and ☕ by [Hardik Bhardwaj](https://github.com/yourusername)
 
 *PrepWise — Because every interview deserves your best.*
 
