@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API = "http://localhost:8000/api";
+const API = "https://prepwise-backend-7tdw.onrender.com";
 const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
 
 const colors = {
@@ -128,7 +128,23 @@ export default function History() {
           zIndex: 20,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <motion.button
+            whileHover={{ background: colors.accent }}
+            onClick={() => navigate("/dashboard")}
+            style={{
+              padding: "8px 14px",
+              border: `1px solid ${colors.border}`,
+              borderRadius: "10px",
+              background: colors.surface,
+              color: colors.secondary,
+              fontSize: "13px",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            ← Dashboard
+          </motion.button>
           <motion.button
             whileHover={{ background: colors.accent }}
             onClick={() => navigate(-1)}

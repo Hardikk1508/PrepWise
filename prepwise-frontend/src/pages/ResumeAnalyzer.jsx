@@ -3,7 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_URL = "http://localhost:8000/api/resume";
+const API_URL = "https://prepwise-backend-7tdw.onrender.com";
 
 const colors = {
   background: "#fafafa",
@@ -94,7 +94,7 @@ export default function ResumeAnalyzer() {
       setTimeout(() => {
         setAnalyzing(false);
         setResult(res.data.analysis);
-        setAnalysisId(res.data.analysisId);
+        setAnalysisId(res.data.analysis._id);
         showToast("Analysis complete");
       }, 300);
     } catch (err) {
@@ -665,8 +665,7 @@ export default function ResumeAnalyzer() {
 
               <motion.div variants={fadeUp} style={{ display: "flex", gap: "10px" }}>
                 <motion.button
-                  whileHover={{ scale: 1.02, y: -1 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ background: colors.accent }}
                   onClick={handleDownload}
                   style={{
                     padding: "11px 22px",

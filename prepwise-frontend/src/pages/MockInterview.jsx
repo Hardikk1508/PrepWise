@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API = "http://localhost:8000/api";
+const API = "https://prepwise-backend-7tdw.onrender.com";
 const ROLES = ["Frontend Developer", "Backend Developer", "Full Stack Developer", "React Developer", "Software Engineer"];
 const LEVELS = ["Fresher", "1-2 Years", "3-5 Years", "5+ Years"];
 const TYPES = ["Technical", "Behavioral", "HR"];

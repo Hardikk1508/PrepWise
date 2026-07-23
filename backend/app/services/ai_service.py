@@ -23,7 +23,7 @@ Return only the questions as a numbered list.
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash",
             contents=prompt
         )
 
@@ -69,7 +69,7 @@ Return ONLY valid JSON:
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash",
             contents=prompt
         )
 

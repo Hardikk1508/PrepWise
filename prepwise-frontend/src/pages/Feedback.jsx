@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API = "http://localhost:8000/api";
+const API = "https://prepwise-backend-7tdw.onrender.com";
 const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
 
 const colors = {

@@ -144,5 +144,8 @@ vite.config.ts.timestamp-*
 # Google service account
 backend/config/prepwise.json
 
+
 backend/config/prepwise.json
 backend/config/*.json
+backend/config/*.json
+

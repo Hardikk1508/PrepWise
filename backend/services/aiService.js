@@ -1,8 +1,5 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const ai = require("../helpers/vertexAI");
 
-const genAI = new GoogleGenerativeAI(
-  process.env.GEMINI_API_KEY
-);
 
 // ── Config for retry strategy ──
 const MAX_RETRIES = 3;
@@ -28,10 +25,7 @@ function isRetryableError(err) {
  * successful response.
  ****************************************************/
 const MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite"
+  "gemini-2.5-flash"
 ];
 
 async function generateWithFallback(prompt) {
@@ -42,14 +36,12 @@ async function generateWithFallback(prompt) {
       try {
         console.log(`Trying ${modelName} Attempt ${attempt}`);
 
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-        });
-
-        const result = await model.generateContent(prompt);
-
-        return result.response.text();
-      } catch (err) {
+          const result = await ai.models.generateContent({
+             model: modelName,
+              contents: prompt,
+            });
+          return result.text;
+           } catch (err) {
         console.error(
           `${modelName} attempt ${attempt} failed:`,
           err.message

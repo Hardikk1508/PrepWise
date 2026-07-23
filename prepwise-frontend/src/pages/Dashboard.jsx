@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API = "http://localhost:8000/api";
+const API = "https://prepwise-backend-7tdw.onrender.com";
 const NAV = [
   { key: "dashboard", label: "Overview", path: "/dashboard" },
   { key: "resume", label: "Resume", path: "/resume" },
