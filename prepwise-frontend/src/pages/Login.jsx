@@ -5,7 +5,7 @@ import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
 import axios from "axios";
 
-const API_URL = "https://prepwise-backend-7tdw.onrender.com";
+const API = "https://prepwise-backend-7tdw.onrender.com/api";
 
 const colors = {
   background: "#fafafa",

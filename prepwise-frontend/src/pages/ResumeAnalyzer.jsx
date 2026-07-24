@@ -3,7 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_URL = "https://prepwise-backend-7tdw.onrender.com";
+const API = "https://prepwise-backend-7tdw.onrender.com/api";
 
 const colors = {
   background: "#fafafa",
