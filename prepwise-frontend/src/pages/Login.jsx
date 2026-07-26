@@ -37,13 +37,13 @@ export default function Login() {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      axios.post(`${API_URL}/api/auth/google-login`, {
+      const res = await axios.post(`${API_URL}/google-login`, {
         name: user.displayName,
         email: user.email,
-      });
+         });
 
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
+         localStorage.setItem("token", res.data.token);
+        localStorage.setItem("user", JSON.stringify(res.data.user));
 
       console.log("Google login successful");
       console.log("Saved token:", localStorage.getItem("token"));
