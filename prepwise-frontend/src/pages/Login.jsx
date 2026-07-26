@@ -19,7 +19,7 @@ const colors = {
   warning: "#ca8a04",
   danger: "#dc2626",
 };
-
+const API_URL = import.meta.env.VITE_API_URL;
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
   const navigate = useNavigate();
