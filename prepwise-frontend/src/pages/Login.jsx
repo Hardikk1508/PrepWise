@@ -37,7 +37,7 @@ export default function Login() {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      const res = await axios.post(`${API_URL}/api/auth/google-login`,  {
+      const res = await axios.post(`${API_URL}/auth/google-login`,  {
         name: user.displayName,
         email: user.email,
          });
