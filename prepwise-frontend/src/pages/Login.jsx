@@ -37,7 +37,7 @@ export default function Login() {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      const res = await axios.post(`${API_URL}/google-login`, {
+      axios.post(`${API_URL}/api/auth/google-login`, {
         name: user.displayName,
         email: user.email,
       });
@@ -63,7 +63,7 @@ export default function Login() {
 
     try {
       if (isLogin) {
-        const res = await axios.post(`${API_URL}/login`, {
+        const res = await axios.post(`${API_URL}/api/auth/login`, {
           email,
           password,
         });
@@ -81,7 +81,7 @@ export default function Login() {
           return;
         }
 
-        await axios.post(`${API_URL}/register`, {
+        await axios.post(`${API_URL}/api/auth/register`, {
           name,
           email,
           password,
