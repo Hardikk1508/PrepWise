@@ -149,3 +149,4 @@ backend/config/prepwise.json
 backend/config/*.json
 backend/config/*.json
 
+prepwise.json
