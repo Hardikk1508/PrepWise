@@ -5,7 +5,8 @@ import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
 import axios from "axios";
 
-const API = "https://prepwise-backend-7tdw.onrender.com/api";
+// const API = "https://prepwise-backend-7tdw.onrender.com/api";
+const API_URL = import.meta.env.VITE_API_URL;
 
 const colors = {
   background: "#fafafa",
@@ -37,7 +38,7 @@ export default function Login() {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      const res = await axios.post(`${API_URL}/google-login`, {
+      const res = await axios.post(`${API_URL}/api/auth/google-login`,  {
         name: user.displayName,
         email: user.email,
          });
