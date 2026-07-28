@@ -25,7 +25,7 @@ function isRetryableError(err) {
  * successful response.
  ****************************************************/
 const MODELS = [
-  "gemini-2.5-flash"
+  "gemini-2.0-flash"
 ];
 
 async function generateWithFallback(prompt) {
