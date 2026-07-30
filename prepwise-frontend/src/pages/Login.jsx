@@ -5,8 +5,9 @@ import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
 import axios from "axios";
 
-// const API = "https://prepwise-backend-7tdw.onrender.com/api";
-const API_URL = import.meta.env.VITE_API_URL;
+// ── FIX: VITE_API_URL already contains /api on Vercel.
+// So we point directly at it — no extra /api appended here.
+const API_URL = import.meta.env.VITE_API_URL + "/auth";
 
 const colors = {
   background: "#fafafa",
@@ -20,6 +21,7 @@ const colors = {
   warning: "#ca8a04",
   danger: "#dc2626",
 };
+
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
   const navigate = useNavigate();
@@ -33,25 +35,20 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      const res = await axios.post(`${API_URL}/auth/google-login`,  {
+      const res = await axios.post(`${API_URL}/google-login`, {
         name: user.displayName,
         email: user.email,
-         });
+      });
 
-         localStorage.setItem("token", res.data.token);
-        localStorage.setItem("user", JSON.stringify(res.data.user));
-
-      console.log("Google login successful");
-      console.log("Saved token:", localStorage.getItem("token"));
-
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
       navigate("/dashboard");
     } catch (error) {
       console.log("Google Error:", error);
-      setError(error.message);
+      setError(error.response?.data?.message || error.message);
     } finally {
       setLoading(false);
     }
@@ -63,16 +60,12 @@ export default function Login() {
 
     try {
       if (isLogin) {
-        const res = await axios.post(`${API_URL}/api/auth/login`, {
+        const res = await axios.post(`${API_URL}/login`, {
           email,
           password,
         });
-
-        console.log(res.data);
-
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("user", JSON.stringify(res.data.user));
-
         navigate("/dashboard");
       } else {
         if (password !== confirmPassword) {
@@ -80,29 +73,19 @@ export default function Login() {
           setLoading(false);
           return;
         }
-
-        await axios.post(`${API_URL}/api/auth/register`, {
+        await axios.post(`${API_URL}/register`, {
           name,
           email,
           password,
         });
-
         setIsLogin(true);
         setError("");
       }
     } catch (err) {
-      console.log("FULL ERROR:", err);
-
-      if (err.response) {
-        console.log("Status:", err.response.status);
-        console.log("Response Data:", err.response.data);
-      } else if (err.request) {
-        console.log("No response received:", err.request);
-      } else {
-        console.log("Error message:", err.message);
-      }
-
-      setError(err.response?.data?.message || err.message || "Something went wrong");
+      console.log("Auth error:", err.response?.data || err.message);
+      setError(
+        err.response?.data?.message || err.message || "Something went wrong"
+      );
     }
 
     setLoading(false);
@@ -129,7 +112,8 @@ export default function Login() {
       transition={{ duration: 0.6 }}
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #f8fafc 0%, #eef2ff 50%, #ede9fe 100%)",
+        background:
+          "linear-gradient(135deg, #f8fafc 0%, #eef2ff 50%, #ede9fe 100%)",
         display: "flex",
         fontFamily: "'Inter', -apple-system, sans-serif",
         overflow: "hidden",
@@ -148,9 +132,7 @@ export default function Login() {
         .tab:hover { color: ${colors.primary} !important; }
         .social:hover { background: ${colors.accent} !important; border-color: ${colors.muted} !important; }
         .switch:hover { text-decoration: underline; }
-        @media(max-width: 880px) {
-          .login-left { display: none !important; }
-        }
+        @media(max-width: 880px) { .login-left { display: none !important; } }
         @media(max-width: 480px) {
           .login-right { padding: 24px !important; }
           .login-card { padding: 28px !important; }
@@ -162,7 +144,8 @@ export default function Login() {
         className="login-left"
         style={{
           width: "420px",
-          background: "linear-gradient(160deg, #0f172a 0%, #1e1b4b 50%, #4f46e5 100%)",
+          background:
+            "linear-gradient(160deg, #0f172a 0%, #1e1b4b 50%, #4f46e5 100%)",
           borderRadius: "0 40px 40px 0",
           position: "relative",
           overflow: "hidden",
@@ -186,7 +169,6 @@ export default function Login() {
             filter: "blur(10px)",
           }}
         />
-
         <div
           style={{
             position: "absolute",
@@ -200,7 +182,16 @@ export default function Login() {
           }}
         />
 
-        <div style={{ fontSize: "16px", fontWeight: "700", color: "#fff", letterSpacing: "-0.2px", position: "relative", zIndex: 1 }}>
+        <div
+          style={{
+            fontSize: "16px",
+            fontWeight: "700",
+            color: "#fff",
+            letterSpacing: "-0.2px",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
           PrepWise
         </div>
 
@@ -219,8 +210,16 @@ export default function Login() {
             <br />
             done right.
           </div>
-          <div style={{ fontSize: "13px", color: "#a5a5c0", lineHeight: 1.7, marginBottom: "40px" }}>
-            Practice mock interviews, analyze your resume, and get AI-generated feedback — all in one place.
+          <div
+            style={{
+              fontSize: "13px",
+              color: "#a5a5c0",
+              lineHeight: 1.7,
+              marginBottom: "40px",
+            }}
+          >
+            Practice mock interviews, analyze your resume, and get AI-generated
+            feedback — all in one place.
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {[
@@ -228,7 +227,10 @@ export default function Login() {
               "Resume ATS analysis and skill gap detection",
               "Detailed feedback reports after every session",
             ].map((f) => (
-              <div key={f} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+              <div
+                key={f}
+                style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}
+              >
                 <div
                   style={{
                     width: "4px",
@@ -239,19 +241,31 @@ export default function Login() {
                     flexShrink: 0,
                   }}
                 />
-                <span style={{ fontSize: "13px", color: "#c4c4dc", lineHeight: 1.6 }}>{f}</span>
+                <span style={{ fontSize: "13px", color: "#c4c4dc", lineHeight: 1.6 }}>
+                  {f}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
-        <div style={{ fontSize: "12px", color: "#7a7a9a", position: "relative", zIndex: 1 }}>© 2026 PrepWise</div>
+        <div
+          style={{ fontSize: "12px", color: "#7a7a9a", position: "relative", zIndex: 1 }}
+        >
+          © 2026 PrepWise
+        </div>
       </div>
 
       {/* Right — form */}
       <div
         className="login-right"
-        style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px" }}
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "40px",
+        }}
       >
         <motion.div
           className="login-card"
@@ -283,7 +297,9 @@ export default function Login() {
               {isLogin ? "Sign in" : "Create account"}
             </h1>
             <p style={{ fontSize: "13px", color: colors.secondary, margin: 0 }}>
-              {isLogin ? "Enter your credentials to continue" : "Fill in the details below to get started"}
+              {isLogin
+                ? "Enter your credentials to continue"
+                : "Fill in the details below to get started"}
             </p>
           </div>
 
@@ -314,7 +330,8 @@ export default function Login() {
                   fontFamily: "inherit",
                   background: (i === 0) === isLogin ? colors.surface : "transparent",
                   color: (i === 0) === isLogin ? colors.primary : colors.secondary,
-                  boxShadow: (i === 0) === isLogin ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
+                  boxShadow:
+                    (i === 0) === isLogin ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
                   transition: "all 0.15s",
                 }}
               >
@@ -323,6 +340,7 @@ export default function Login() {
             ))}
           </div>
 
+          {/* Error message */}
           <AnimatePresence>
             {error && (
               <motion.div
@@ -344,11 +362,20 @@ export default function Login() {
             )}
           </AnimatePresence>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}>
+          {/* Fields */}
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}
+          >
             {!isLogin && (
               <div>
                 <label
-                  style={{ fontSize: "12px", fontWeight: "500", color: "#374151", display: "block", marginBottom: "5px" }}
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "500",
+                    color: "#374151",
+                    display: "block",
+                    marginBottom: "5px",
+                  }}
                 >
                   Full name
                 </label>
@@ -363,7 +390,13 @@ export default function Login() {
             )}
             <div>
               <label
-                style={{ fontSize: "12px", fontWeight: "500", color: "#374151", display: "block", marginBottom: "5px" }}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  color: "#374151",
+                  display: "block",
+                  marginBottom: "5px",
+                }}
               >
                 Email address
               </label>
@@ -376,9 +409,22 @@ export default function Login() {
               />
             </div>
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
-                <label style={{ fontSize: "12px", fontWeight: "500", color: "#374151" }}>Password</label>
-                {isLogin && <span style={{ fontSize: "12px", color: colors.secondary, cursor: "pointer" }}>Forgot password?</span>}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "5px",
+                }}
+              >
+                <label style={{ fontSize: "12px", fontWeight: "500", color: "#374151" }}>
+                  Password
+                </label>
+                {isLogin && (
+                  <span style={{ fontSize: "12px", color: colors.secondary, cursor: "pointer" }}>
+                    Forgot password?
+                  </span>
+                )}
               </div>
               <input
                 style={inputStyle}
@@ -392,7 +438,13 @@ export default function Login() {
             {!isLogin && (
               <div>
                 <label
-                  style={{ fontSize: "12px", fontWeight: "500", color: "#374151", display: "block", marginBottom: "5px" }}
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "500",
+                    color: "#374151",
+                    display: "block",
+                    marginBottom: "5px",
+                  }}
                 >
                   Confirm password
                 </label>
@@ -408,6 +460,7 @@ export default function Login() {
             )}
           </div>
 
+          {/* Submit button */}
           <button
             className="l-btn"
             onClick={handleAuth}
@@ -430,12 +483,21 @@ export default function Login() {
             {loading ? "Please wait…" : isLogin ? "Continue" : "Create account"}
           </button>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+          {/* Divider */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "16px",
+            }}
+          >
             <div style={{ flex: 1, height: "1px", background: colors.border }} />
             <span style={{ fontSize: "11px", color: colors.muted }}>or continue with</span>
             <div style={{ flex: 1, height: "1px", background: colors.border }} />
           </div>
 
+          {/* Google */}
           <button
             className="social"
             onClick={handleGoogleLogin}
@@ -459,6 +521,7 @@ export default function Login() {
             Google
           </button>
 
+          {/* Footer */}
           <p style={{ fontSize: "12px", color: colors.secondary, textAlign: "center", margin: 0 }}>
             {isLogin ? "Don't have an account? " : "Already have an account? "}
             <span
