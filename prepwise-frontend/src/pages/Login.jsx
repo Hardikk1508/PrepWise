@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { signInWithPopup } from "firebase/auth";
+import {
+  signInWithRedirect,
+  signInWithPopup,
+  getRedirectResult,
+} from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
 import axios from "axios";
 
-// ── FIX: VITE_API_URL already contains /api on Vercel.
-// So we point directly at it — no extra /api appended here.
-const API_URL = import.meta.env.VITE_API_URL + "/auth";
+// ── CRITICAL FIX ──
+// VITE_API_URL on Vercel = https://prepwise-backend-7tdw.onrender.com/api
+// So we only append /auth — NOT /api/auth
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const API_URL = `${BASE}/auth`;
 
 const colors = {
   background: "#fafafa",
@@ -32,23 +38,59 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Handle Google redirect result when user returns to the page
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const user = result.user;
+          const res = await axios.post(`${API_URL}/google-login`, {
+            name: user.displayName,
+            email: user.email,
+          });
+          localStorage.setItem("token", res.data.token);
+          localStorage.setItem("user", JSON.stringify(res.data.user));
+          navigate("/dashboard");
+        }
+      } catch (err) {
+        if (err.code !== "auth/no-current-user") {
+          console.error("Redirect result error:", err);
+          setError(err.response?.data?.message || err.message);
+        }
+      }
+    };
+    handleRedirectResult();
+  }, []);
+
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+      setError("");
 
-      const res = await axios.post(`${API_URL}/google-login`, {
-        name: user.displayName,
-        email: user.email,
-      });
+      // Use popup on localhost, redirect on deployed (avoids popup-closed-by-user)
+      const isLocal = window.location.hostname === "localhost";
 
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-      navigate("/dashboard");
-    } catch (error) {
-      console.log("Google Error:", error);
-      setError(error.response?.data?.message || error.message);
+      if (isLocal) {
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        const res = await axios.post(`${API_URL}/google-login`, {
+          name: user.displayName,
+          email: user.email,
+        });
+        localStorage.setItem("token", res.data.token);
+        localStorage.setItem("user", JSON.stringify(res.data.user));
+        navigate("/dashboard");
+      } else {
+        // On Vercel — redirect flow (no popup, avoids COOP/popup issues)
+        await signInWithRedirect(auth, googleProvider);
+        // getRedirectResult in useEffect above handles the return
+      }
+    } catch (err) {
+      console.error("Google Error:", err);
+      if (err.code !== "auth/popup-closed-by-user") {
+        setError(err.response?.data?.message || err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -82,7 +124,7 @@ export default function Login() {
         setError("");
       }
     } catch (err) {
-      console.log("Auth error:", err.response?.data || err.message);
+      console.error("Auth error:", err.response?.data || err.message);
       setError(
         err.response?.data?.message || err.message || "Something went wrong"
       );
@@ -181,7 +223,6 @@ export default function Login() {
             filter: "blur(10px)",
           }}
         />
-
         <div
           style={{
             fontSize: "16px",
@@ -194,7 +235,6 @@ export default function Login() {
         >
           PrepWise
         </div>
-
         <div style={{ position: "relative", zIndex: 1 }}>
           <div
             style={{
@@ -229,7 +269,11 @@ export default function Login() {
             ].map((f) => (
               <div
                 key={f}
-                style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "flex-start",
+                }}
               >
                 <div
                   style={{
@@ -241,16 +285,22 @@ export default function Login() {
                     flexShrink: 0,
                   }}
                 />
-                <span style={{ fontSize: "13px", color: "#c4c4dc", lineHeight: 1.6 }}>
+                <span
+                  style={{ fontSize: "13px", color: "#c4c4dc", lineHeight: 1.6 }}
+                >
                   {f}
                 </span>
               </div>
             ))}
           </div>
         </div>
-
         <div
-          style={{ fontSize: "12px", color: "#7a7a9a", position: "relative", zIndex: 1 }}
+          style={{
+            fontSize: "12px",
+            color: "#7a7a9a",
+            position: "relative",
+            zIndex: 1,
+          }}
         >
           © 2026 PrepWise
         </div>
@@ -328,10 +378,14 @@ export default function Login() {
                   fontWeight: "600",
                   cursor: "pointer",
                   fontFamily: "inherit",
-                  background: (i === 0) === isLogin ? colors.surface : "transparent",
-                  color: (i === 0) === isLogin ? colors.primary : colors.secondary,
+                  background:
+                    (i === 0) === isLogin ? colors.surface : "transparent",
+                  color:
+                    (i === 0) === isLogin ? colors.primary : colors.secondary,
                   boxShadow:
-                    (i === 0) === isLogin ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
+                    (i === 0) === isLogin
+                      ? "0 1px 3px rgba(0,0,0,0.06)"
+                      : "none",
                   transition: "all 0.15s",
                 }}
               >
@@ -340,7 +394,7 @@ export default function Login() {
             ))}
           </div>
 
-          {/* Error message */}
+          {/* Error */}
           <AnimatePresence>
             {error && (
               <motion.div
@@ -364,7 +418,12 @@ export default function Login() {
 
           {/* Fields */}
           <div
-            style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              marginBottom: "16px",
+            }}
           >
             {!isLogin && (
               <div>
@@ -417,11 +476,23 @@ export default function Login() {
                   marginBottom: "5px",
                 }}
               >
-                <label style={{ fontSize: "12px", fontWeight: "500", color: "#374151" }}>
+                <label
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "500",
+                    color: "#374151",
+                  }}
+                >
                   Password
                 </label>
                 {isLogin && (
-                  <span style={{ fontSize: "12px", color: colors.secondary, cursor: "pointer" }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: colors.secondary,
+                      cursor: "pointer",
+                    }}
+                  >
                     Forgot password?
                   </span>
                 )}
@@ -460,7 +531,7 @@ export default function Login() {
             )}
           </div>
 
-          {/* Submit button */}
+          {/* Submit */}
           <button
             className="l-btn"
             onClick={handleAuth}
@@ -493,7 +564,9 @@ export default function Login() {
             }}
           >
             <div style={{ flex: 1, height: "1px", background: colors.border }} />
-            <span style={{ fontSize: "11px", color: colors.muted }}>or continue with</span>
+            <span style={{ fontSize: "11px", color: colors.muted }}>
+              or continue with
+            </span>
             <div style={{ flex: 1, height: "1px", background: colors.border }} />
           </div>
 
@@ -518,16 +591,27 @@ export default function Login() {
               transition: "all 0.15s",
             }}
           >
-            Google
+            {loading ? "Redirecting…" : "Continue with Google"}
           </button>
 
           {/* Footer */}
-          <p style={{ fontSize: "12px", color: colors.secondary, textAlign: "center", margin: 0 }}>
+          <p
+            style={{
+              fontSize: "12px",
+              color: colors.secondary,
+              textAlign: "center",
+              margin: 0,
+            }}
+          >
             {isLogin ? "Don't have an account? " : "Already have an account? "}
             <span
               className="switch"
               onClick={() => setIsLogin(!isLogin)}
-              style={{ color: colors.primary, fontWeight: "600", cursor: "pointer" }}
+              style={{
+                color: colors.primary,
+                fontWeight: "600",
+                cursor: "pointer",
+              }}
             >
               {isLogin ? "Sign up" : "Sign in"}
             </span>
